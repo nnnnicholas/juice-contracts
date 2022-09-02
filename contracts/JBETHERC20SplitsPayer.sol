@@ -26,6 +26,7 @@ import './JBETHERC20ProjectPayer.sol';
   JBETHERC20ProjectPayer: Sends ETH or ERC20's to a project treasury as it receives direct payments or has it's functions called.
   ReentrancyGuard: Contract module that helps prevent reentrant calls to a function.
 */
+
 contract JBETHERC20SplitsPayer is IJBSplitsPayer, JBETHERC20ProjectPayer, ReentrancyGuard {
   using SafeERC20 for IERC20;
 

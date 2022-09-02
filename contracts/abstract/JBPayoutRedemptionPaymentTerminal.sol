@@ -36,11 +36,11 @@ import './JBSingleTokenPaymentTerminal.sol';
   Ownable: Includes convenience functionality for checking a message sender's permissions before executing certain transactions.
 */
 abstract contract JBPayoutRedemptionPaymentTerminal is
-  IJBPayoutRedemptionPaymentTerminal,
   JBSingleTokenPaymentTerminal,
   JBOperatable,
+
   Ownable
-{
+
   // A library that parses the packed funding cycle metadata into a friendlier format.
   using JBFundingCycleMetadataResolver for JBFundingCycle;
 
