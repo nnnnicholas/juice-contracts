@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.16;
 
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 import '@paulrberg/contracts/math/PRBMath.sol';
 import './interfaces/IJBSplitsPayer.sol';
@@ -25,7 +26,10 @@ import './JBETHERC20ProjectPayer.sol';
   JBETHERC20ProjectPayer: Sends ETH or ERC20's to a project treasury as it receives direct payments or has it's functions called.
   ReentrancyGuard: Contract module that helps prevent reentrant calls to a function.
 */
-contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSplitsPayer {
+
+contract JBETHERC20SplitsPayer is IJBSplitsPayer, JBETHERC20ProjectPayer, ReentrancyGuard {
+  using SafeERC20 for IERC20;
+
   //*********************************************************************//
   // ---------------- public immutable stored properties --------------- //
   //*********************************************************************//
@@ -151,7 +155,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
       JBTokens.ETH,
       address(this).balance,
       18, // decimals.
-      defaultBeneficiary != address(0) ? defaultBeneficiary : msg.sender
+      defaultBeneficiary != address(0) ? defaultBeneficiary : tx.origin
     );
 
     // If there is no leftover amount, nothing left to pay.
@@ -176,16 +180,16 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
           JBTokens.ETH,
           _leftoverAmount,
           18, // decimals.
-          defaultBeneficiary != address(0) ? defaultBeneficiary : msg.sender,
+          defaultBeneficiary != address(0) ? defaultBeneficiary : tx.origin,
           0, // min returned tokens.
           defaultPreferClaimedTokens,
           defaultMemo,
           defaultMetadata
         );
-    // If no project was specified, send the funds directly to the beneficiary or the msg.sender.
+    // If no project was specified, send the funds directly to the beneficiary or the tx.origin.
     else
       Address.sendValue(
-        defaultBeneficiary != address(0) ? payable(defaultBeneficiary) : payable(msg.sender),
+        defaultBeneficiary != address(0) ? payable(defaultBeneficiary) : payable(tx.origin),
         _leftoverAmount
       );
   }
@@ -252,8 +256,14 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
     if (address(_token) != JBTokens.ETH) {
       if (msg.value > 0) revert NO_MSG_VALUE_ALLOWED();
 
+      // Get a reference to the balance before receiving tokens.
+      uint256 _balanceBefore = IERC20(_token).balanceOf(address(this));
+
       // Transfer tokens to this contract from the msg sender.
-      IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+      IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+
+      // The amount should reflect the change in balance.
+      _amount = IERC20(_token).balanceOf(address(this)) - _balanceBefore;
     } else {
       // If ETH is being paid, set the amount to the message value, and decimals to 18.
       _amount = msg.value;
@@ -268,7 +278,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
       _token,
       _amount,
       _decimals,
-      defaultBeneficiary != address(0) ? defaultBeneficiary : msg.sender
+      defaultBeneficiary != address(0) ? defaultBeneficiary : tx.origin
     );
 
     // Pay any leftover amount.
@@ -280,27 +290,27 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
           _token,
           _leftoverAmount,
           _decimals,
-          _beneficiary != address(0) ? _beneficiary : msg.sender,
+          _beneficiary != address(0) ? _beneficiary : tx.origin,
           _minReturnedTokens,
           _preferClaimedTokens,
           _memo,
           _metadata
         );
       }
-      // If no project was specified, send the funds directly to the beneficiary or the msg.sender.
+      // If no project was specified, send the funds directly to the beneficiary or the tx.origin.
       else {
         // Transfer the ETH.
         if (_token == JBTokens.ETH)
           Address.sendValue(
-            // If there's a beneficiary, send the funds directly to the beneficiary. Otherwise send to the msg.sender.
-            _beneficiary != address(0) ? payable(_beneficiary) : payable(msg.sender),
+            // If there's a beneficiary, send the funds directly to the beneficiary. Otherwise send to the tx.origin.
+            _beneficiary != address(0) ? payable(_beneficiary) : payable(tx.origin),
             _leftoverAmount
           );
           // Or, transfer the ERC20.
         else
-          IERC20(_token).transfer(
+          IERC20(_token).safeTransfer(
             // If there's a beneficiary, send the funds directly to the beneficiary. Otherwise send to the msg.sender.
-            _beneficiary != address(0) ? _beneficiary : msg.sender,
+            _beneficiary != address(0) ? _beneficiary : tx.origin,
             _leftoverAmount
           );
       }
@@ -308,7 +318,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
 
     emit Pay(
       _projectId,
-      _beneficiary != address(0) ? defaultBeneficiary : msg.sender,
+      _beneficiary != address(0) ? defaultBeneficiary : tx.origin,
       _token,
       _amount,
       _decimals,
@@ -344,8 +354,14 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
     if (address(_token) != JBTokens.ETH) {
       if (msg.value > 0) revert NO_MSG_VALUE_ALLOWED();
 
+      // Get a reference to the balance before receiving tokens.
+      uint256 _balanceBefore = IERC20(_token).balanceOf(address(this));
+
       // Transfer tokens to this contract from the msg sender.
-      IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+      IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+
+      // The amount should reflect the change in balance.
+      _amount = IERC20(_token).balanceOf(address(this)) - _balanceBefore;
     } else {
       // If ETH is being paid, set the amount to the message value, and decimals to 18.
       _amount = msg.value;
@@ -360,7 +376,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
       _token,
       _amount,
       _decimals,
-      defaultBeneficiary != address(0) ? defaultBeneficiary : msg.sender
+      defaultBeneficiary != address(0) ? defaultBeneficiary : tx.origin
     );
 
     // Distribute any leftover amount.
@@ -376,14 +392,14 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
         if (_token == JBTokens.ETH)
           Address.sendValue(
             // If there's a default beneficiary, send the funds directly to the beneficiary. Otherwise send to the msg.sender.
-            defaultBeneficiary != address(0) ? defaultBeneficiary : payable(msg.sender),
+            defaultBeneficiary != address(0) ? defaultBeneficiary : payable(tx.origin),
             _leftoverAmount
           );
           // Or, transfer the ERC20.
         else
-          IERC20(_token).transfer(
+          IERC20(_token).safeTransfer(
             // If there's a default beneficiary, send the funds directly to the beneficiary. Otherwise send to the msg.sender.
-            defaultBeneficiary != address(0) ? defaultBeneficiary : msg.sender,
+            defaultBeneficiary != address(0) ? defaultBeneficiary : tx.origin,
             _leftoverAmount
           );
       }
@@ -391,7 +407,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
 
     emit AddToBalance(
       _projectId,
-      defaultBeneficiary != address(0) ? defaultBeneficiary : msg.sender,
+      defaultBeneficiary != address(0) ? defaultBeneficiary : tx.origin,
       _token,
       _amount,
       _decimals,
@@ -463,7 +479,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
     leftoverAmount = _amount;
 
     // Settle between all splits.
-    for (uint256 i = 0; i < _splits.length; i++) {
+    for (uint256 i; i < _splits.length; ) {
       // Get a reference to the split being iterated on.
       JBSplit memory _split = _splits[i];
 
@@ -490,7 +506,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
 
           // Approve the `_amount` of tokens for the split allocator to transfer tokens from this contract.
           if (_token != JBTokens.ETH)
-            IERC20(_token).approve(address(_split.allocator), _splitAmount);
+            IERC20(_token).safeApprove(address(_split.allocator), _splitAmount);
 
           // If the token is ETH, send it in msg.value.
           uint256 _payableValue = _token == JBTokens.ETH ? _splitAmount : 0;
@@ -531,7 +547,7 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
             );
             // Or, transfer the ERC20.
           else {
-            IERC20(_token).transfer(
+            IERC20(_token).safeTransfer(
               // Get a reference to the address receiving the tokens. If there's a beneficiary, send the funds directly to the beneficiary. Otherwise send to _defaultBeneficiary.
               _split.beneficiary != address(0) ? _split.beneficiary : _defaultBeneficiary,
               _splitAmount
@@ -544,6 +560,10 @@ contract JBETHERC20SplitsPayer is JBETHERC20ProjectPayer, ReentrancyGuard, IJBSp
       }
 
       emit DistributeToSplit(_split, _splitAmount, _defaultBeneficiary, msg.sender);
+
+      unchecked {
+        ++i;
+      }
     }
   }
 }

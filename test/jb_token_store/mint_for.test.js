@@ -31,14 +31,19 @@ describe('JBTokenStore::mintFor(...)', function () {
       controller,
       newHolder,
       mockJbDirectory,
+      mockJbProjects,
       jbTokenStore,
     };
   }
 
   it('Should mint claimed tokens and emit event if caller is controller', async function () {
-    const { controller, newHolder, mockJbDirectory, jbTokenStore } = await setup();
+    const { controller, newHolder, mockJbDirectory, mockJbProjects, jbTokenStore } = await setup();
 
+    // Mint access:
     await mockJbDirectory.mock.controllerOf.withArgs(PROJECT_ID).returns(controller.address);
+
+    // IssueFor access:
+    await mockJbProjects.mock.ownerOf.withArgs(PROJECT_ID).returns(controller.address);
 
     await jbTokenStore.connect(controller).issueFor(PROJECT_ID, TOKEN_NAME, TOKEN_SYMBOL);
 
@@ -64,9 +69,13 @@ describe('JBTokenStore::mintFor(...)', function () {
   });
 
   it('Should mint unclaimed tokens and emit event if caller is controller', async function () {
-    const { controller, newHolder, mockJbDirectory, jbTokenStore } = await setup();
+    const { controller, newHolder, mockJbDirectory, mockJbProjects, jbTokenStore } = await setup();
 
+    // Mint access:
     await mockJbDirectory.mock.controllerOf.withArgs(PROJECT_ID).returns(controller.address);
+
+    // IssueFor access:
+    await mockJbProjects.mock.ownerOf.withArgs(PROJECT_ID).returns(controller.address);
 
     await jbTokenStore.connect(controller).issueFor(PROJECT_ID, TOKEN_NAME, TOKEN_SYMBOL);
 
@@ -93,13 +102,14 @@ describe('JBTokenStore::mintFor(...)', function () {
       );
   });
 
-  it(`Can't mint tokens if caller does not have permission`, async function () {
-    const { newHolder, mockJbDirectory, jbTokenStore } = await setup();
+  it(`Can't mint tokens if caller is not the controller`, async function () {
+    const { controller, newHolder, mockJbDirectory, mockJbProjects, jbTokenStore } = await setup();
 
     // Return a random controller address.
     await mockJbDirectory.mock.controllerOf
       .withArgs(PROJECT_ID)
       .returns(ethers.Wallet.createRandom().address);
+    await mockJbProjects.mock.ownerOf.withArgs(PROJECT_ID).returns(controller.address);
 
     await expect(
       jbTokenStore.mintFor(

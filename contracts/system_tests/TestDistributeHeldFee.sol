@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.6;
 
 import '@paulrberg/contracts/math/PRBMath.sol';
 import '@paulrberg/contracts/math/PRBMathUD60x18.sol';
@@ -49,7 +49,6 @@ contract TestDistributeHeldFee is TestBaseWorkflow {
       pauseRedeem: false,
       pauseBurn: false,
       allowMinting: false,
-      allowChangeToken: false,
       allowTerminalMigration: false,
       allowControllerMigration: false,
       holdFees: true,

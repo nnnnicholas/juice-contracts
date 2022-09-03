@@ -14,7 +14,7 @@ describe('JBTokenStore::transferFrom(...)', function () {
   const TOKEN_SYMBOL = 'TEST';
 
   async function setup() {
-    const [deployer, controller, holder, recipient] = await ethers.getSigners();
+    const [deployer, controller, holder, recipient, projectOwner] = await ethers.getSigners();
 
     const jbOperationsFactory = await ethers.getContractFactory('JBOperations');
     const jbOperations = await jbOperationsFactory.deploy();
@@ -36,8 +36,10 @@ describe('JBTokenStore::transferFrom(...)', function () {
       controller,
       holder,
       recipient,
+      projectOwner,
       mockJbDirectory,
       mockJbOperatorStore,
+      mockJbProjects,
       jbTokenStore,
       TRANSFER_INDEX,
     };
@@ -48,19 +50,25 @@ describe('JBTokenStore::transferFrom(...)', function () {
       controller,
       holder,
       recipient,
+      projectOwner,
       mockJbDirectory,
       mockJbOperatorStore,
+      mockJbProjects,
       jbTokenStore,
       TRANSFER_INDEX,
     } = await setup();
 
     await mockJbDirectory.mock.controllerOf.withArgs(PROJECT_ID).returns(controller.address);
+
+    // IssueFor access:
+    await mockJbProjects.mock.ownerOf.withArgs(PROJECT_ID).returns(projectOwner.address);
+
     await mockJbOperatorStore.mock.hasPermission
       .withArgs(controller.address, holder.address, PROJECT_ID, TRANSFER_INDEX)
       .returns(true);
 
     // Issue tokens for project
-    await jbTokenStore.connect(controller).issueFor(PROJECT_ID, TOKEN_NAME, TOKEN_SYMBOL);
+    await jbTokenStore.connect(projectOwner).issueFor(PROJECT_ID, TOKEN_NAME, TOKEN_SYMBOL);
 
     // Mint unclaimed tokens
     const numTokens = 20;

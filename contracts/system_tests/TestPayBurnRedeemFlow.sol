@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.6;
 
 import '@paulrberg/contracts/math/PRBMath.sol';
 import '@paulrberg/contracts/math/PRBMathUD60x18.sol';
@@ -53,7 +53,6 @@ contract TestPayBurnRedeemFlow is TestBaseWorkflow {
       pauseRedeem: false,
       pauseBurn: false,
       allowMinting: false,
-      allowChangeToken: false,
       allowTerminalMigration: false,
       allowControllerMigration: false,
       holdFees: false,
@@ -100,7 +99,7 @@ contract TestPayBurnRedeemFlow is TestBaseWorkflow {
   ) external {
     // issue an ERC-20 token for project
     evm.prank(_projectOwner);
-    _controller.issueTokenFor(_projectId, 'TestName', 'TestSymbol');
+    _tokenStore.issueFor(_projectId, 'TestName', 'TestSymbol');
 
     address _userWallet = address(1234);
 
@@ -130,10 +129,10 @@ contract TestPayBurnRedeemFlow is TestBaseWorkflow {
 
     // burn tokens from beneficiary addr
     if (burnTokenAmount == 0) evm.expectRevert(abi.encodeWithSignature('NO_BURNABLE_TOKENS()'));
+    else if (burnTokenAmount > uint256(type(int256).max))
+      evm.expectRevert("SafeCast: value doesn't fit in an int256");
     else if (burnTokenAmount > _userTokenBalance)
       evm.expectRevert(abi.encodeWithSignature('INSUFFICIENT_FUNDS()'));
-    else if (burnTokenAmount > uint256(type(int256).max))
-      evm.expectRevert(abi.encodeWithSignature('Panic(uint256)', 0x11));
     else _userTokenBalance = _userTokenBalance - burnTokenAmount;
 
     evm.prank(_userWallet);

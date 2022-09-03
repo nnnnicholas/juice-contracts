@@ -2,17 +2,17 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { deployMockContract } from '@ethereum-waffle/mock-contract';
 
-import { setBalance } from '../../helpers/utils';
-import errors from '../../helpers/errors.json';
+import { setBalance } from '../helpers/utils';
+import errors from '../helpers/errors.json';
 
-import jbController from '../../../artifacts/contracts/interfaces/IJBController.sol/IJBController.json';
-import jbDirectory from '../../../artifacts/contracts/interfaces/IJBDirectory.sol/IJBDirectory.json';
-import jbPaymentTerminalStore from '../../../artifacts/contracts/JBSingleTokenPaymentTerminalStore.sol/JBSingleTokenPaymentTerminalStore.json';
-import jbOperatoreStore from '../../../artifacts/contracts/interfaces/IJBOperatorStore.sol/IJBOperatorStore.json';
-import jbProjects from '../../../artifacts/contracts/interfaces/IJBProjects.sol/IJBProjects.json';
-import jbSplitsStore from '../../../artifacts/contracts/interfaces/IJBSplitsStore.sol/IJBSplitsStore.json';
-import jbPrices from '../../../artifacts/contracts/interfaces/IJBPrices.sol/IJBPrices.json';
-import jbRedemptionDelegate from '../../../artifacts/contracts/interfaces/IJBRedemptionDelegate.sol/IJBRedemptionDelegate.json';
+import jbController from '../../artifacts/contracts/interfaces/IJBController.sol/IJBController.json';
+import jbDirectory from '../../artifacts/contracts/interfaces/IJBDirectory.sol/IJBDirectory.json';
+import jbPaymentTerminalStore from '../../artifacts/contracts/JBSingleTokenPaymentTerminalStore.sol/JBSingleTokenPaymentTerminalStore.json';
+import jbOperatoreStore from '../../artifacts/contracts/interfaces/IJBOperatorStore.sol/IJBOperatorStore.json';
+import jbProjects from '../../artifacts/contracts/interfaces/IJBProjects.sol/IJBProjects.json';
+import jbSplitsStore from '../../artifacts/contracts/interfaces/IJBSplitsStore.sol/IJBSplitsStore.json';
+import jbPrices from '../../artifacts/contracts/interfaces/IJBPrices.sol/IJBPrices.json';
+import jbRedemptionDelegate from '../../artifacts/contracts/interfaces/IJBRedemptionDelegate.sol/IJBRedemptionDelegate.json';
 
 describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
   const AMOUNT = 50000;
@@ -45,6 +45,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
       mockJbSplitsStore,
       mockJbPrices,
       mockJbRedemptionDelegate,
+      mockJbRedemptionDelegate2,
       mockJbController,
     ] = await Promise.all([
       deployMockContract(deployer, jbDirectory.abi),
@@ -53,6 +54,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
       deployMockContract(deployer, jbProjects.abi),
       deployMockContract(deployer, jbSplitsStore.abi),
       deployMockContract(deployer, jbPrices.abi),
+      deployMockContract(deployer, jbRedemptionDelegate.abi),
       deployMockContract(deployer, jbRedemptionDelegate.abi),
       deployMockContract(deployer, jbController.abi),
     ]);
@@ -113,6 +115,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
       mockJBPaymentTerminalStore,
       mockJbOperatorStore,
       mockJbRedemptionDelegate,
+      mockJbRedemptionDelegate2,
       mockJbController,
       mockJbDirectory,
       otherCaller,
@@ -143,7 +146,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
       .returns(
         fundingCycle,
         /* reclaimAmount */ RECLAIM_AMOUNT,
-        /* delegate */ ethers.constants.AddressZero,
+        /* delegateAllocation */ [],
         ADJUSTED_MEMO,
       );
 
@@ -164,7 +167,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
         METADATA,
       );
 
-    expect(await tx)
+    await expect(tx)
       .to.emit(jbEthPaymentTerminal, 'RedeemTokens')
       .withArgs(
         /* _fundingCycle.configuration */ timestamp,
@@ -204,7 +207,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
       .returns(
         fundingCycle,
         /* reclaimAmount */ RECLAIM_AMOUNT,
-        /* delegate */ ethers.constants.AddressZero,
+        /* delegateAllocation */ [],
         ADJUSTED_MEMO,
       );
 
@@ -225,7 +228,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
         METADATA,
       );
 
-    expect(await tx)
+    await expect(tx)
       .to.emit(jbEthPaymentTerminal, 'RedeemTokens')
       .withArgs(
         /* _fundingCycle.configuration */ timestamp,
@@ -273,7 +276,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
       .returns(
         fundingCycle,
         /* reclaimAmount */ RECLAIM_AMOUNT,
-        /* delegate */ mockJbRedemptionDelegate.address,
+        /* delegate */ [mockJbRedemptionDelegate.address],
         ADJUSTED_MEMO,
       );
 
@@ -314,7 +317,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
         METADATA,
       );
 
-    expect(await tx).to.emit(jbEthPaymentTerminal, 'DelegateDidRedeem');
+    await expect(tx).to.emit(jbEthPaymentTerminal, 'DelegateDidRedeem');
     // Uncaught AssertionError: expected [ Array(4) ] to equal [ Array(4) ]
 
     // .withArgs(
@@ -337,7 +340,138 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
     //   /* msg.sender */ holder.address,
     // );
 
-    expect(await tx)
+    await expect(tx)
+      .to.emit(jbEthPaymentTerminal, 'RedeemTokens')
+      .withArgs(
+        /* _fundingCycle.configuration */ timestamp,
+        /* _fundingCycle.number */ FUNDING_CYCLE_NUM,
+        /* _projectId */ PROJECT_ID,
+        /* _holder */ holder.address,
+        /* _beneficiary */ beneficiary.address,
+        /* _tokenCount */ AMOUNT,
+        /* reclaimAmount */ RECLAIM_AMOUNT,
+        /* memo */ ADJUSTED_MEMO,
+        /* metadata */ METADATA,
+        /* msg.sender */ holder.address,
+      );
+
+    // Terminal should be out of ETH
+    expect(await ethers.provider.getBalance(jbEthPaymentTerminal.address)).to.equal(0);
+
+    // Beneficiary should have a larger balance
+    expect(await ethers.provider.getBalance(beneficiary.address)).to.equal(
+      initialBeneficiaryBalance.add(RECLAIM_AMOUNT),
+    );
+  });
+
+  it('Should redeem tokens and call multiple delegate', async function () {
+    const {
+      beneficiary,
+      fundingCycle,
+      holder,
+      jbEthPaymentTerminal,
+      mockJBPaymentTerminalStore,
+      mockJbRedemptionDelegate,
+      mockJbRedemptionDelegate2,
+      mockJbDirectory,
+      mockJbController,
+      timestamp,
+    } = await setup();
+
+    await mockJbDirectory.mock.controllerOf.withArgs(PROJECT_ID).returns(mockJbController.address);
+    await mockJbController.mock.burnTokensOf
+      .withArgs(holder.address, PROJECT_ID, AMOUNT, /* memo */ '', /* preferClaimedTokens */ false)
+      .returns();
+
+    // Keep it simple and let 1 token exchange for 1 wei
+    await mockJBPaymentTerminalStore.mock.recordRedemptionFor
+      .withArgs(holder.address, PROJECT_ID, /* tokenCount */ AMOUNT, MEMO, METADATA)
+      .returns(
+        fundingCycle,
+        /* reclaimAmount */ RECLAIM_AMOUNT,
+        /* delegate */ [mockJbRedemptionDelegate.address, mockJbRedemptionDelegate2.address],
+        ADJUSTED_MEMO,
+      );
+
+    let tokenAddress = await jbEthPaymentTerminal.token();
+    await mockJbRedemptionDelegate.mock.didRedeem
+      .withArgs({
+        // JBDidRedeemData obj
+        holder: holder.address,
+        projectId: PROJECT_ID,
+        currentFundingCycleConfiguration: timestamp,
+        projectTokenCount: AMOUNT,
+        reclaimedAmount: {
+          token: tokenAddress,
+          value: RECLAIM_AMOUNT,
+          decimals: DECIMALS_ETH,
+          currency: CURRENCY_ETH,
+        },
+        beneficiary: beneficiary.address,
+        memo: ADJUSTED_MEMO,
+        metadata: METADATA,
+      })
+      .returns();
+
+    await mockJbRedemptionDelegate2.mock.didRedeem
+      .withArgs({
+        // JBDidRedeemData obj
+        holder: holder.address,
+        projectId: PROJECT_ID,
+        currentFundingCycleConfiguration: timestamp,
+        projectTokenCount: AMOUNT,
+        reclaimedAmount: {
+          token: tokenAddress,
+          value: RECLAIM_AMOUNT,
+          decimals: DECIMALS_ETH,
+          currency: CURRENCY_ETH,
+        },
+        beneficiary: beneficiary.address,
+        memo: ADJUSTED_MEMO,
+        metadata: METADATA,
+      })
+      .returns();
+
+    await setBalance(jbEthPaymentTerminal.address, RECLAIM_AMOUNT);
+
+    const initialBeneficiaryBalance = await ethers.provider.getBalance(beneficiary.address);
+
+    const tx = await jbEthPaymentTerminal
+      .connect(holder)
+      .redeemTokensOf(
+        holder.address,
+        PROJECT_ID,
+        /* tokenCount */ AMOUNT,
+        /* token */ ethers.constants.AddressZero,
+        /* minReturnedTokens */ MIN_RETURNED_AMOUNT,
+        beneficiary.address,
+        MEMO,
+        METADATA,
+      );
+
+    // Uncaught AssertionError: expected [ Array(4) ] to equal [ Array(4) ]
+    await expect(tx).to.emit(jbEthPaymentTerminal, 'DelegateDidRedeem');
+    // .withArgs(
+    //   mockJbRedemptionDelegate.address,
+    //   [
+    //     // JBDidRedeemData obj
+    //     holder.address,
+    //     PROJECT_ID,
+    //     AMOUNT,
+    //     [
+    //       tokenAddress,
+    //       ethers.BigNumber.from(RECLAIM_AMOUNT),
+    //       ethers.BigNumber.from(DECIMALS_ETH),
+    //       CURRENCY_ETH,
+    //     ],
+    //     beneficiary.address,
+    //     ADJUSTED_MEMO,
+    //     METADATA,
+    //   ],
+    //   /* msg.sender */ holder.address,
+    // );
+
+    await expect(tx)
       .to.emit(jbEthPaymentTerminal, 'RedeemTokens')
       .withArgs(
         /* _fundingCycle.configuration */ timestamp,
@@ -381,12 +515,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
     // Keep it simple and let 1 token exchange for 1 wei
     await mockJBPaymentTerminalStore.mock.recordRedemptionFor
       .withArgs(holder.address, PROJECT_ID, /* tokenCount */ AMOUNT, MEMO, METADATA)
-      .returns(
-        fundingCycle,
-        /* reclaimAmount */ 0,
-        /* delegate */ ethers.constants.AddressZero,
-        ADJUSTED_MEMO,
-      ); // Set reclaimAmount to 0
+      .returns(fundingCycle, /* reclaimAmount */ 0, /* delegateAllocation */ [], ADJUSTED_MEMO); // Set reclaimAmount to 0
 
     await setBalance(jbEthPaymentTerminal.address, AMOUNT);
 
@@ -405,7 +534,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
         METADATA,
       );
 
-    expect(await tx)
+    await expect(tx)
       .to.emit(jbEthPaymentTerminal, 'RedeemTokens')
       .withArgs(
         /* _fundingCycle.configuration */ timestamp,
@@ -489,12 +618,7 @@ describe('JBPayoutRedemptionPaymentTerminal::redeemTokensOf(...)', function () {
     // Keep it simple and let 1 token exchange for 1 wei
     await mockJBPaymentTerminalStore.mock.recordRedemptionFor
       .withArgs(holder.address, PROJECT_ID, /* tokenCount */ AMOUNT, MEMO, METADATA)
-      .returns(
-        fundingCycle,
-        /* reclaimAmount */ 0,
-        /* delegate */ ethers.constants.AddressZero,
-        ADJUSTED_MEMO,
-      ); // Set reclaimAmount to 0
+      .returns(fundingCycle, /* reclaimAmount */ 0, /* delegateAllocation */ [], ADJUSTED_MEMO); // Set reclaimAmount to 0
 
     await expect(
       jbEthPaymentTerminal

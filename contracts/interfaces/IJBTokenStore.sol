@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.16;
 
 import './IJBProjects.sol';
 import './IJBToken.sol';
@@ -42,13 +42,7 @@ interface IJBTokenStore {
 
   event ShouldRequireClaim(uint256 indexed projectId, bool indexed flag, address caller);
 
-  event Change(
-    uint256 indexed projectId,
-    IJBToken indexed newToken,
-    IJBToken indexed oldToken,
-    address owner,
-    address caller
-  );
+  event Set(uint256 indexed projectId, IJBToken indexed newToken, address caller);
 
   event Transfer(
     address indexed holder,
@@ -59,8 +53,6 @@ interface IJBTokenStore {
   );
 
   function tokenOf(uint256 _projectId) external view returns (IJBToken);
-
-  function projectOf(IJBToken _token) external view returns (uint256);
 
   function projects() external view returns (IJBProjects);
 
@@ -80,11 +72,7 @@ interface IJBTokenStore {
     string calldata _symbol
   ) external returns (IJBToken token);
 
-  function changeFor(
-    uint256 _projectId,
-    IJBToken _token,
-    address _newOwner
-  ) external returns (IJBToken oldToken);
+  function setFor(uint256 _projectId, IJBToken _token) external;
 
   function burnFrom(
     address _holder,

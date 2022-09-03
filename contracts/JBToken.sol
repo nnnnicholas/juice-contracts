@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.16;
 
-import '@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './interfaces/IJBToken.sol';
 
@@ -15,10 +15,26 @@ import './interfaces/IJBToken.sol';
 
   @dev
   Inherits from -
-  ERC20Permit: General token standard for fungible accounting. 
+  ERC20Votes: General token standard for fungible membership. 
   Ownable: Includes convenience functionality for checking a message sender's permissions before executing certain transactions.
 */
-contract JBToken is ERC20Permit, Ownable, IJBToken {
+
+contract JBToken is IJBToken, ERC20Votes, Ownable {
+  //*********************************************************************//
+  // --------------------------- custom errors ------------------------- //
+  //*********************************************************************//
+  error BAD_PROJECT();
+
+  //*********************************************************************//
+  // --------------------- public stored properties -------------------- //
+  //*********************************************************************//
+
+  /** 
+    @notice
+    The ID of the project that this token should be exclusively used for. Send 0 to support any project. 
+  */
+  uint256 public override projectId;
+
   //*********************************************************************//
   // ------------------------- external views -------------------------- //
   //*********************************************************************//
@@ -79,13 +95,17 @@ contract JBToken is ERC20Permit, Ownable, IJBToken {
   /** 
     @param _name The name of the token.
     @param _symbol The symbol that the token should be represented by.
+    @param _projectId The ID of the project that this token should be exclusively used for. Send 0 to support any project.
   */
-  constructor(string memory _name, string memory _symbol)
+  constructor(
+    string memory _name,
+    string memory _symbol,
+    uint256 _projectId
+  )
     ERC20(_name, _symbol)
-    ERC20Permit(_name)
-  // solhint-disable-next-line no-empty-blocks
+    ERC20Permit(_name) // solhint-disable-next-line no-empty-blocks
   {
-
+    projectId = _projectId;
   }
 
   //*********************************************************************//
@@ -108,7 +128,8 @@ contract JBToken is ERC20Permit, Ownable, IJBToken {
     address _account,
     uint256 _amount
   ) external override onlyOwner {
-    _projectId; // Prevents unused var compiler and natspec complaints.
+    // Can't mint for a wrong project.
+    if (projectId != 0 && _projectId != projectId) revert BAD_PROJECT();
 
     return _mint(_account, _amount);
   }
@@ -129,7 +150,8 @@ contract JBToken is ERC20Permit, Ownable, IJBToken {
     address _account,
     uint256 _amount
   ) external override onlyOwner {
-    _projectId; // Prevents unused var compiler and natspec complaints.
+    // Can't burn for a wrong project.
+    if (projectId != 0 && _projectId != projectId) revert BAD_PROJECT();
 
     return _burn(_account, _amount);
   }
@@ -147,7 +169,8 @@ contract JBToken is ERC20Permit, Ownable, IJBToken {
     address _spender,
     uint256 _amount
   ) external override {
-    _projectId; // Prevents unused var compiler and natspec complaints.
+    // Can't approve for a wrong project.
+    if (projectId != 0 && _projectId != projectId) revert BAD_PROJECT();
 
     approve(_spender, _amount);
   }
@@ -165,7 +188,8 @@ contract JBToken is ERC20Permit, Ownable, IJBToken {
     address _to,
     uint256 _amount
   ) external override {
-    _projectId; // Prevents unused var compiler and natspec complaints.
+    // Can't transfer for a wrong project.
+    if (projectId != 0 && _projectId != projectId) revert BAD_PROJECT();
 
     transfer(_to, _amount);
   }
@@ -185,33 +209,9 @@ contract JBToken is ERC20Permit, Ownable, IJBToken {
     address _to,
     uint256 _amount
   ) external override {
-    _projectId; // Prevents unused var compiler and natspec complaints.
+    // Can't transfer for a wrong project.
+    if (projectId != 0 && _projectId != projectId) revert BAD_PROJECT();
 
     transferFrom(_from, _to, _amount);
-  }
-
-  //*********************************************************************//
-  // ------------------------ public transactions ---------------------- //
-  //*********************************************************************//
-
-  /** 
-    @notice
-    Transfer ownership of this contract to another address.
-
-    @dev
-    Only the owner of this contract can transfer it.
-
-    @param _projectId The ID of the project to which the token belongs. This is ignored.
-    @param _newOwner The new owner.
-  */
-  function transferOwnership(uint256 _projectId, address _newOwner)
-    public
-    virtual
-    override
-    onlyOwner
-  {
-    _projectId; // Prevents unused var compiler and natspec complaints.
-
-    return super.transferOwnership(_newOwner);
   }
 }

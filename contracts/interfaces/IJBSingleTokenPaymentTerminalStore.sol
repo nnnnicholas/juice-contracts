@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.16;
 
 import './../structs/JBFundingCycle.sol';
+import './../structs/JBPayDelegateAllocation.sol';
 import './../structs/JBTokenAmount.sol';
 import './IJBDirectory.sol';
 import './IJBFundingCycleStore.sol';
@@ -72,7 +73,7 @@ interface IJBSingleTokenPaymentTerminalStore {
     returns (
       JBFundingCycle memory fundingCycle,
       uint256 tokenCount,
-      IJBPayDelegate delegate,
+      JBPayDelegateAllocation[] memory delegateAllocations,
       string memory memo
     );
 
@@ -87,7 +88,7 @@ interface IJBSingleTokenPaymentTerminalStore {
     returns (
       JBFundingCycle memory fundingCycle,
       uint256 reclaimAmount,
-      IJBRedemptionDelegate delegate,
+      IJBRedemptionDelegate[] memory delegates,
       string memory memo
     );
 

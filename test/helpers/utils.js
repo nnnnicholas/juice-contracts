@@ -73,9 +73,9 @@ export async function setBalance(
  * @param {string} symbol
  * @return {ethers.Contract}
  */
-export async function deployJbToken(name, symbol) {
+export async function deployJbToken(name, symbol, projectId) {
   const jbTokenFactory = await ethers.getContractFactory('JBToken');
-  return await jbTokenFactory.deploy(name, symbol);
+  return await jbTokenFactory.deploy(name, symbol, projectId);
 }
 
 /**
@@ -131,7 +131,6 @@ export function packFundingCycleMetadata({
   pauseRedeem = 0, // boolean
   pauseBurn = 0, // boolean
   allowMinting = 0, // boolean
-  allowChangeToken = 0, // boolean
   allowTerminalMigration = 0, // boolean
   allowControllerMigration = 0, // boolean
   holdFees = 0, // boolean
@@ -153,14 +152,13 @@ export function packFundingCycleMetadata({
   if (pauseRedeem) packed = packed.or(one.shl(74));
   if (pauseBurn) packed = packed.or(one.shl(75));
   if (allowMinting) packed = packed.or(one.shl(76));
-  if (allowChangeToken) packed = packed.or(one.shl(77));
-  if (allowTerminalMigration) packed = packed.or(one.shl(78));
-  if (allowControllerMigration) packed = packed.or(one.shl(79));
-  if (holdFees) packed = packed.or(one.shl(80));
-  if (useTotalOverflowForRedemptions) packed = packed.or(one.shl(81));
-  if (useDataSourceForPay) packed = packed.or(one.shl(82));
-  if (useDataSourceForRedeem) packed = packed.or(one.shl(83));
-  return packed.or(ethers.BigNumber.from(dataSource).shl(84));
+  if (allowTerminalMigration) packed = packed.or(one.shl(77));
+  if (allowControllerMigration) packed = packed.or(one.shl(78));
+  if (holdFees) packed = packed.or(one.shl(79));
+  if (useTotalOverflowForRedemptions) packed = packed.or(one.shl(80));
+  if (useDataSourceForPay) packed = packed.or(one.shl(81));
+  if (useDataSourceForRedeem) packed = packed.or(one.shl(82));
+  return packed.or(ethers.BigNumber.from(dataSource).shl(83));
 }
 
 /**

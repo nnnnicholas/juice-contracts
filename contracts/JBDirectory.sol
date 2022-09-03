@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.16;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './abstract/JBOperatable.sol';
@@ -129,16 +129,23 @@ contract JBDirectory is JBOperatable, Ownable, IJBDirectory {
     override
     returns (IJBPaymentTerminal)
   {
-    // If a primary terminal for the token was specifically set and its one of the project's terminals, return it.
+    // If a primary terminal for the token was specifically set and it's one of the project's terminals, return it.
+    IJBPaymentTerminal _primaryTerminal = _primaryTerminalOf[_projectId][_token];
+
     if (
-      _primaryTerminalOf[_projectId][_token] != IJBPaymentTerminal(address(0)) &&
-      isTerminalOf(_projectId, _primaryTerminalOf[_projectId][_token])
-    ) return _primaryTerminalOf[_projectId][_token];
+      _primaryTerminal != IJBPaymentTerminal(address(0)) &&
+      isTerminalOf(_projectId, _primaryTerminal)
+    ) return _primaryTerminal;
 
     // Return the first terminal which accepts the specified token.
-    for (uint256 _i; _i < _terminalsOf[_projectId].length; _i++) {
+    uint256 _numberOfTerminals = _terminalsOf[_projectId].length;
+    for (uint256 _i; _i < _numberOfTerminals; ) {
       IJBPaymentTerminal _terminal = _terminalsOf[_projectId][_i];
       if (_terminal.acceptsToken(_token, _projectId)) return _terminal;
+
+      unchecked {
+        ++_i;
+      }
     }
 
     // Not found.
@@ -164,8 +171,13 @@ contract JBDirectory is JBOperatable, Ownable, IJBDirectory {
     override
     returns (bool)
   {
-    for (uint256 _i; _i < _terminalsOf[_projectId].length; _i++)
+    uint256 _numberOfTerminals = _terminalsOf[_projectId].length;
+    for (uint256 _i; _i < _numberOfTerminals; ) {
       if (_terminalsOf[_projectId][_i] == _terminal) return true;
+      unchecked {
+        ++_i;
+      }
+    }
     return false;
   }
 
@@ -267,15 +279,25 @@ contract JBDirectory is JBOperatable, Ownable, IJBDirectory {
       !uint8(_fundingCycle.metadata >> 8).setTerminalsAllowed()
     ) revert SET_TERMINALS_NOT_ALLOWED();
 
-    // Delete the stored terminals for the project.
+    // Set the stored terminals for the project.
     _terminalsOf[_projectId] = _terminals;
 
     // Make sure duplicates were not added.
-    if (_terminals.length > 1)
-      for (uint256 _i; _i < _terminals.length; _i++)
-        for (uint256 _j = _i + 1; _j < _terminals.length; _j++)
+    if (_terminals.length > 1) {
+      for (uint256 _i; _i < _terminals.length; ) {
+        for (uint256 _j = _i + 1; _j < _terminals.length; ) {
           if (_terminals[_i] == _terminals[_j]) revert DUPLICATE_TERMINALS();
 
+          unchecked {
+            ++_j;
+          }
+        }
+
+        unchecked {
+          ++_i;
+        }
+      }
+    }
     emit SetTerminals(_projectId, _terminals, msg.sender);
   }
 

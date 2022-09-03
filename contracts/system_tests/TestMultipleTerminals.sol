@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity ^0.8.6;
 
 import '@paulrberg/contracts/math/PRBMath.sol';
 import './helpers/TestBaseWorkflow.sol';
@@ -70,7 +70,6 @@ contract TestMultipleTerminals is TestBaseWorkflow {
       pauseRedeem: false,
       pauseBurn: false,
       allowMinting: true,
-      allowChangeToken: false,
       allowTerminalMigration: false,
       allowControllerMigration: false,
       holdFees: false,
@@ -143,12 +142,6 @@ contract TestMultipleTerminals is TestBaseWorkflow {
       jbLibraries().USD(), // currency
       jbLibraries().ETH(), // base weight currency
       _priceFeedUsdEth
-    );
-
-    jbPrices().addFeedFor(
-      jbLibraries().ETH(), // currency
-      jbLibraries().USD(), // base weight currency
-      _priceFeed
     );
 
     evm.stopPrank();
